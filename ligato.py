@@ -1,6 +1,5 @@
 import numpy as np
 from termcolor import colored
-import os
 from numba import njit
 import time
 import pandas as pd
@@ -101,6 +100,9 @@ def calc_state_value(board_state, attack_factor=1.0):
     return value
 
 
+# Calculate the value of a board_state.
+# value is the position of player_0 minus position of player_1.
+# Penalty is used the penalize a player putting >= 2 on the second last row, >=3 on the third last row, etc.
 @njit
 def value_function(board_state, penalty):
     h, w = board_state.shape
@@ -127,6 +129,7 @@ def check_win_conditions(board_state):
     return winning_player
 
 
+# Search tree algorithm. Recursive function that looks ahead 'depth' turns, and determines the best path forward, assuming ideal opponent behavior.
 def minimax_treesearch(board_state, depth: int, penalty, printing: bool = False):
     if depth == 0:
         state_value = value_function(board_state=board_state, penalty=penalty)
@@ -164,6 +167,7 @@ def minimax_treesearch(board_state, depth: int, penalty, printing: bool = False)
         return max_value, best_action
 
 
+# Used to create a Ligato game board
 class LigatoGame:
     def __init__(self, board_size):
         self.player_names = ['Red', 'Blue']
@@ -276,6 +280,8 @@ class LigatoGame:
                 print("After %s turns, the game was stopped with no winner." % (30 * self.board_size[1]))
 
 
+# Basic Ligato AI, using minimax treesearch algorithm to determine its moves.
+# WIP: gives an error sometimes when depth is > 4.
 class LigatoAI:
     def __init__(self, depth, penalty):
         self.depth = depth
@@ -290,6 +296,7 @@ class LigatoAI:
         return action
 
 
+# Class to create a tournament with AI's, letting them compete, gather statistics and save them.
 class LigatoTournament:
     def __init__(self, name):
         self.name = name
