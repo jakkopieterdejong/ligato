@@ -57,7 +57,7 @@ def calc_row_sum(board_state):
 
 
 @njit
-def check_available_actions(board_state):
+def check_available_actions(board_state, return_all=False):
     # action format: list with allowed actions. Each action is a 2 value list: [column, step_size]
     # step_size is the number of steps forward (positive) or backward on that column.
     available_actions = []
@@ -68,8 +68,14 @@ def check_available_actions(board_state):
         step_size = rowsum[pos0]
         if (pos0 + step_size < board_state.shape[0]) & (pos0 + step_size != pos1):
             available_actions.append([col, step_size])
+        else:
+            if return_all:
+                available_actions.append(None)
         if (pos0 - step_size >= 0) & (pos0 - step_size != pos1):
             available_actions.append([col, -step_size])
+        else:
+            if return_all:
+                available_actions.append(None)
     return available_actions
 
 
