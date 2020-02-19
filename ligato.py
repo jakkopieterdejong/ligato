@@ -27,7 +27,6 @@ def print_board(board_state):
             else:
                 string += colored('0 ', 'white')
         print(string)
-    print('')
 
 
 @njit
@@ -58,8 +57,9 @@ def calc_row_sum(board_state):
 
 @njit
 def check_available_actions(board_state, return_all=False):
-    # action format: list with allowed actions. Each action is a 2 value list: [column, step_size]
-    # step_size is the number of steps forward (positive) or backward on that column.
+    # Checks which actions are available for player 0.
+    # If return_all==True, this function returns all actions. The actions that are not allowed are set to None.
+    # Returns a list of 2 value lists: [column, step_size]. step_size is the number of steps forward (positive) or backward on that column.
     available_actions = []
     rowsum = calc_row_sum(board_state)
     for col in range(board_state.shape[1]):
@@ -81,6 +81,8 @@ def check_available_actions(board_state, return_all=False):
 
 @njit
 def update_board_state(board_state, col, step):
+    # used to update board_state with an action of player 0
+    # return the new board_state, or None if the action was not permitted
     available_actions = check_available_actions(board_state)
     new_board_state = board_state.copy()
     if [col, step] in available_actions:
@@ -88,7 +90,6 @@ def update_board_state(board_state, col, step):
         new_board_state[cur_row, col] = -1
         new_board_state[cur_row + step, col] = 0
     else:
-        print('Action not permitted!')
         new_board_state = None
     return new_board_state
 
@@ -202,6 +203,7 @@ class LigatoGame:
         self.turn = 0
         self.cur_player = 0
         self.game_finished = False
+        self.winner = None
         board = np.ones(shape=self.board_size, dtype='int8') * -1
         np.random.seed(seed)
         if start:
@@ -235,12 +237,14 @@ class LigatoGame:
         else:
             self.board_state = flip_board_state(board_state)
 
-    def _move(self, player, action):
+    def move(self, player, action):
         if player != self.cur_player:
-            print("Wrong player! This turn is for player %s" % self.cur_player)
+            if self.printing:
+                print("Wrong player! This turn is for player %s" % self.cur_player)
             return
         if self.game_finished:
-            print("Game is finished. Won by player %s." % self.check_win_conditions())
+            if self.printing:
+                print("Game is finished. Won by player %s." % self.winner)
             return
         board_state = self.get_board_state(player=player)
         new_board_state = update_board_state(board_state=board_state, col=action[0], step=action[1])
@@ -261,14 +265,14 @@ class LigatoGame:
             print("Human player %s is up for play:" % pl)
             col = input('Which column [0-' + str(self.board_size[1] - 1) + '] ?')
             step = input('Stepsize? ')
-            self._move(player=pl, action=[int(col), int(step)])
+            self.move(player=pl, action=[int(col), int(step)])
         else:
             start_time = time.time()
             action = self.player_AI[pl].play(board_state=self.get_board_state(player=pl))
             if self.printing:
                 print("AI %s is playing:" % pl)
                 print("AI picks action %s in %s seconds." % (action, time.time() - start_time))
-            self._move(player=pl, action=action)
+            self.move(player=pl, action=action)
         if not self.game_finished:
             self.play()
 
