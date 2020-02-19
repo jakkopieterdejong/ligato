@@ -5,7 +5,7 @@ import time
 import pandas as pd
 
 
-def generate_start_state(num_cols:int):
+def generate_start_state(num_cols: int):
     col_pos = np.repeat(1, num_cols)
     forward_steps = num_cols
     while forward_steps > 0:
@@ -60,6 +60,7 @@ def check_available_actions(board_state, return_all=False):
     # Checks which actions are available for player 0.
     # If return_all==True, this function returns all actions. The actions that are not allowed are set to None.
     # Returns a list of 2 value lists: [column, step_size]. step_size is the number of steps forward (positive) or backward on that column.
+    # If no actions are available at all, None is returned.
     available_actions = []
     rowsum = calc_row_sum(board_state)
     for col in range(board_state.shape[1]):
@@ -76,19 +77,25 @@ def check_available_actions(board_state, return_all=False):
         else:
             if return_all:
                 available_actions.append(None)
+    if len(available_actions) == 0:
+        available_actions.append(None)
     return available_actions
 
 
-@njit
-def update_board_state(board_state, col, step):
+def update_board_state(board_state, action):
     # used to update board_state with an action of player 0
     # return the new board_state, or None if the action was not permitted
     available_actions = check_available_actions(board_state)
     new_board_state = board_state.copy()
-    if [col, step] in available_actions:
-        cur_row = np.where(board_state[:, col] == 0)[0]
-        new_board_state[cur_row, col] = -1
-        new_board_state[cur_row + step, col] = 0
+    if action in available_actions:
+        if action is None:
+            new_board_state = board_state
+        else:
+            col = action[0]
+            step = action[1]
+            cur_row = np.where(board_state[:, col] == 0)[0]
+            new_board_state[cur_row, col] = -1
+            new_board_state[cur_row + step, col] = 0
     else:
         new_board_state = None
     return new_board_state
@@ -150,7 +157,11 @@ def minimax_treesearch(board_state, depth: int, penalty, printing: bool = False)
         values = []
         available_actions = check_available_actions(board_state)
         for a in available_actions:
-            new_board_state = update_board_state(board_state, col=a[0], step=a[1])
+            # check if any actions are available, otherwise skip turn
+            if a is None:
+                new_board_state = board_state
+            else:
+                new_board_state = update_board_state(board_state, a)
             state_value, action = minimax_treesearch(board_state=flip_board_state(new_board_state), depth=depth - 1, penalty=penalty, printing=printing)
             winning_player = check_win_conditions(new_board_state)
             state_value *= -1
@@ -247,8 +258,10 @@ class LigatoGame:
                 print("Game is finished. Won by player %s." % self.winner)
             return
         board_state = self.get_board_state(player=player)
-        new_board_state = update_board_state(board_state=board_state, col=action[0], step=action[1])
+        new_board_state = update_board_state(board_state=board_state, action=action)
         if new_board_state is None:
+            if self.printing:
+                print("Invalid move %s" % str(action))
             return
         self.turn += 1
         self.cur_player = (self.cur_player + 1) % 2
@@ -291,15 +304,11 @@ class LigatoGame:
 
 
 # Basic Ligato AI, using minimax treesearch algorithm to determine its moves.
-# WIP: gives an error sometimes when depth is > 4.
 class LigatoAI:
     def __init__(self, depth, penalty):
         self.depth = depth
         self.name = "Minimax treesearch"
         self.penalty = penalty
-        # self.folder = os.path.join(os.path.curdir, name)
-        # if not os.path.exists(self.folder):
-        #    os.makedirs(self.folder)
 
     def play(self, board_state):
         _, action = minimax_treesearch(board_state=board_state, depth=self.depth, penalty=self.penalty, printing=False)
@@ -340,4 +349,4 @@ class LigatoTournament:
                                              'won_by': game.winner,
                                              'turns': game.turn}, ignore_index=True)
         self.write_log()
-        self.log.groupby(['p0_depth', 'p1_depth', 'won_by']).turns.count()
+        print(self.log.groupby(['p0_depth', 'p1_depth', 'won_by']).turns.count())

@@ -32,16 +32,20 @@ def create_train_data(game: lig.LigatoGame, opponent: lig.LigatoAI, model, num_g
 
             # Determine action from neural network
             all_actions = lig.check_available_actions(game.board_state, return_all=True)
-            all_probs = model.forward(np.expand_dims(bs, axis=0))
-            actions = []
-            probs = []
-            for a, p in zip(all_actions, all_probs):
-                if a is not None:
-                    actions.append(a)
-                    probs.append(p)
-            probs = np.array(probs) / np.array(probs).sum()
-            index = np.random.choice(range(len(actions)), p=probs)
-            action = actions[index]
+            if all(a is None for a in all_actions):
+                index = np.random.choice(range(model.num_actions))
+                action = None
+            else:
+                all_probs = model.forward(np.expand_dims(bs, axis=0))
+                actions = []
+                probs = []
+                for a, p in zip(all_actions, all_probs):
+                    if a is not None:
+                        actions.append(a)
+                        probs.append(p)
+                probs = np.array(probs) / np.array(probs).sum()
+                index = np.random.choice(range(len(actions)), p=probs)
+                action = actions[index]
 
             # Take action
             game.move(0, action=action)
